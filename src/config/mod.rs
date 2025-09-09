@@ -86,6 +86,37 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Create a new config with custom base path (useful for testing)
+    pub fn new(base_path: PathBuf) -> Self {
+        Self {
+            client: ClientConfig {
+                user_agent: "kick-api-client/0.1.0".to_string(),
+                timeout: 30,
+                max_retries: 3,
+                retry_delay: 1000,
+                default_headers: HashMap::new(),
+                base_url: None,
+            },
+            storage: StorageConfig {
+                base_path: base_path.clone(),
+                temp_path: base_path.join("temp"),
+                max_file_size: 100 * 1024 * 1024, // 100MB
+                cleanup_on_exit: true,
+            },
+            plugins: PluginConfig {
+                enabled_plugins: Vec::new(),
+                plugin_paths: Vec::new(),
+                plugin_settings: HashMap::new(),
+            },
+            streaming: StreamingConfig {
+                buffer_size: 65536,
+                chunk_size: 8192,
+                max_concurrent_streams: 10,
+                stream_timeout: 30,
+            },
+        }
+    }
+    
     /// Load configuration from XDG config directory
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path();

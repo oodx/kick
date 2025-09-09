@@ -1,10 +1,5 @@
 use crate::error::{ApiError, Result};
 use async_trait::async_trait;
-use hyper::{Request, Response};
-use hyper::body::Body;
-use http_body_util::combinators::BoxBody;
-use bytes::Bytes;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -41,7 +36,7 @@ impl PluginContext {
     }
 }
 
-/// Main plugin trait that all plugins must implement
+/// Simplified plugin trait based on driver patterns
 #[async_trait]
 pub trait Plugin: Send + Sync {
     /// Plugin name
@@ -53,141 +48,101 @@ pub trait Plugin: Send + Sync {
     /// Plugin description
     fn description(&self) -> &str;
     
-    /// Initialize the plugin with configuration
-    async fn initialize(&mut self, config: &serde_json::Value) -> Result<()>;
+    /// Initialize plugin with configuration
+    async fn initialize(&mut self, _config: &serde_json::Value) -> Result<()> {
+        Ok(())
+    }
     
-    /// Check if plugin should handle this hook
-    fn handles_hook(&self, hook: &PluginHook) -> bool;
+    /// Check if plugin handles a specific hook
+    fn handles_hook(&self, hook: &PluginHook) -> bool {
+        match hook {
+            PluginHook::PreRequest | PluginHook::PostRequest => true,
+            _ => false,
+        }
+    }
     
-    /// Handle pre-request processing
-    async fn handle_pre_request(
-        &self,
-        _request: &mut Request<BoxBody<Bytes, hyper::Error>>,
-        _context: &PluginContext,
-    ) -> Result<()> {
+    /// Handle pre-request processing (simplified - no request mutation for now)
+    async fn handle_pre_request(&self, url: &str, _context: &PluginContext) -> Result<()> {
+        // Default implementation - plugins can override
         Ok(())
     }
     
     /// Handle post-request processing
-    async fn handle_post_request(
-        &self,
-        _request: &Request<BoxBody<Bytes, hyper::Error>>,
-        _context: &PluginContext,
-    ) -> Result<()> {
+    async fn handle_post_request(&self, url: &str, status: u16, _context: &PluginContext) -> Result<()> {
+        // Default implementation - plugins can override
         Ok(())
     }
     
-    /// Handle pre-response processing
-    async fn handle_pre_response(
-        &self,
-        _response: &mut Response<BoxBody<Bytes, hyper::Error>>,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        Ok(())
-    }
-    
-    /// Handle post-response processing
-    async fn handle_post_response(
-        &self,
-        _response: &Response<BoxBody<Bytes, hyper::Error>>,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        Ok(())
-    }
-    
-    /// Handle error cases
-    async fn handle_error(
-        &self,
-        _error: &ApiError,
-        _context: &PluginContext,
-    ) -> Result<()> {
+    /// Handle errors
+    async fn handle_error(&self, _error: &ApiError, _context: &PluginContext) -> Result<()> {
         Ok(())
     }
     
     /// Handle retry attempts
-    async fn handle_retry(
-        &self,
-        _attempt: usize,
-        _context: &PluginContext,
-    ) -> Result<()> {
+    async fn handle_retry(&self, _attempt: u32, _context: &PluginContext) -> Result<()> {
         Ok(())
-    }
-    
-    /// Handle streaming data
-    async fn handle_stream(
-        &self,
-        _data: &[u8],
-        _context: &PluginContext,
-    ) -> Result<Vec<u8>> {
-        Ok(_data.to_vec())
     }
 }
 
-/// Plugin manager to handle registration and execution
+/// Plugin manager for registering and executing plugins
 pub struct PluginManager {
-    plugins: HashMap<String, Arc<dyn Plugin>>,
-    hook_plugins: HashMap<PluginHook, Vec<String>>,
+    pub plugins: Vec<Arc<dyn Plugin>>,
 }
 
 impl PluginManager {
     pub fn new() -> Self {
         Self {
-            plugins: HashMap::new(),
-            hook_plugins: HashMap::new(),
+            plugins: Vec::new(),
         }
     }
     
-    /// Register a plugin
     pub fn register_plugin(&mut self, plugin: Arc<dyn Plugin>) -> Result<()> {
-        let name = plugin.name().to_string();
-        
-        // Build hook mapping
-        for hook in [
-            PluginHook::PreRequest,
-            PluginHook::PostRequest,
-            PluginHook::PreResponse,
-            PluginHook::PostResponse,
-            PluginHook::OnError,
-            PluginHook::OnRetry,
-            PluginHook::OnStream,
-        ] {
-            if plugin.handles_hook(&hook) {
-                self.hook_plugins
-                    .entry(hook)
-                    .or_insert_with(Vec::new)
-                    .push(name.clone());
-            }
-        }
-        
-        self.plugins.insert(name, plugin);
+        self.plugins.push(plugin);
         Ok(())
     }
     
-    /// Execute plugins for a specific hook
-    pub async fn execute_hook(
-        &self,
-        hook: PluginHook,
-        context: &PluginContext,
-        callback: impl Fn(&Arc<dyn Plugin>, &PluginContext) -> futures::future::BoxFuture<'_, Result<()>>,
-    ) -> Result<()> {
-        if let Some(plugin_names) = self.hook_plugins.get(&hook) {
-            for plugin_name in plugin_names {
-                if let Some(plugin) = self.plugins.get(plugin_name) {
-                    callback(plugin, context).await?;
-                }
+    /// Execute plugins for pre-request hook
+    pub async fn execute_pre_request(&self, url: &str) -> Result<()> {
+        let context = PluginContext::new(PluginHook::PreRequest);
+        
+        for plugin in &self.plugins {
+            if plugin.handles_hook(&PluginHook::PreRequest) {
+                plugin.handle_pre_request(url, &context).await?;
             }
         }
         Ok(())
     }
     
-    /// Get plugin by name
-    pub fn get_plugin(&self, name: &str) -> Option<&Arc<dyn Plugin>> {
-        self.plugins.get(name)
+    /// Execute plugins for post-request hook
+    pub async fn execute_post_request(&self, url: &str, status: u16) -> Result<()> {
+        let context = PluginContext::new(PluginHook::PostRequest);
+        
+        for plugin in &self.plugins {
+            if plugin.handles_hook(&PluginHook::PostRequest) {
+                plugin.handle_post_request(url, status, &context).await?;
+            }
+        }
+        Ok(())
     }
     
-    /// List all registered plugins
-    pub fn list_plugins(&self) -> Vec<&str> {
-        self.plugins.keys().map(|s| s.as_str()).collect()
+    /// Execute plugins for error hook
+    pub async fn execute_error(&self, error: &ApiError) -> Result<()> {
+        let context = PluginContext::new(PluginHook::OnError);
+        
+        for plugin in &self.plugins {
+            plugin.handle_error(error, &context).await?;
+        }
+        Ok(())
+    }
+    
+    /// Execute plugins for retry hook
+    pub async fn execute_retry(&self, attempt: u32) -> Result<()> {
+        let context = PluginContext::new(PluginHook::OnRetry);
+        
+        for plugin in &self.plugins {
+            plugin.handle_retry(attempt, &context).await?;
+        }
+        Ok(())
     }
 }
 
@@ -197,25 +152,19 @@ impl Default for PluginManager {
     }
 }
 
-/// Example logging plugin implementation
-pub struct LoggingPlugin {
-    name: String,
-    enabled: bool,
-}
+/// Basic logging plugin implementation
+pub struct LoggingPlugin;
 
 impl LoggingPlugin {
     pub fn new() -> Self {
-        Self {
-            name: "logging".to_string(),
-            enabled: true,
-        }
+        Self
     }
 }
 
 #[async_trait]
 impl Plugin for LoggingPlugin {
     fn name(&self) -> &str {
-        &self.name
+        "logging"
     }
     
     fn version(&self) -> &str {
@@ -226,114 +175,48 @@ impl Plugin for LoggingPlugin {
         "Logs HTTP requests and responses"
     }
     
-    async fn initialize(&mut self, config: &serde_json::Value) -> Result<()> {
-        if let Some(enabled) = config.get("enabled").and_then(|v| v.as_bool()) {
-            self.enabled = enabled;
-        }
+    async fn handle_pre_request(&self, url: &str, _context: &PluginContext) -> Result<()> {
+        println!("[PLUGIN-LOG] Making request to: {}", url);
         Ok(())
     }
     
-    fn handles_hook(&self, hook: &PluginHook) -> bool {
-        matches!(hook, 
-            PluginHook::PreRequest | 
-            PluginHook::PostResponse | 
-            PluginHook::OnError
-        )
-    }
-    
-    async fn handle_pre_request(
-        &self,
-        request: &mut Request<Body>,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        if self.enabled {
-            tracing::info!("Outgoing request: {} {}", request.method(), request.uri());
-        }
+    async fn handle_post_request(&self, url: &str, status: u16, _context: &PluginContext) -> Result<()> {
+        println!("[PLUGIN-LOG] Response from {}: {}", url, status);
         Ok(())
     }
     
-    async fn handle_post_response(
-        &self,
-        response: &Response<Body>,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        if self.enabled {
-            tracing::info!("Received response: {}", response.status());
-        }
-        Ok(())
-    }
-    
-    async fn handle_error(
-        &self,
-        error: &ApiError,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        if self.enabled {
-            tracing::error!("Request error: {}", error);
-        }
+    async fn handle_error(&self, error: &ApiError, _context: &PluginContext) -> Result<()> {
+        println!("[PLUGIN-LOG] Error occurred: {}", error);
         Ok(())
     }
 }
 
-/// Example rate limiting plugin
-pub struct RateLimitPlugin {
-    name: String,
-    requests_per_minute: usize,
-    last_reset: std::time::Instant,
-    request_count: usize,
-}
-
-impl RateLimitPlugin {
-    pub fn new(requests_per_minute: usize) -> Self {
-        Self {
-            name: "rate_limiter".to_string(),
-            requests_per_minute,
-            last_reset: std::time::Instant::now(),
-            request_count: 0,
-        }
-    }
-}
-
-#[async_trait]
-impl Plugin for RateLimitPlugin {
-    fn name(&self) -> &str {
-        &self.name
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_plugin_manager_creation() {
+        let manager = PluginManager::new();
+        assert_eq!(manager.plugins.len(), 0);
     }
     
-    fn version(&self) -> &str {
-        "1.0.0"
-    }
-    
-    fn description(&self) -> &str {
-        "Implements rate limiting for API requests"
-    }
-    
-    async fn initialize(&mut self, config: &serde_json::Value) -> Result<()> {
-        if let Some(rpm) = config.get("requests_per_minute").and_then(|v| v.as_u64()) {
-            self.requests_per_minute = rpm as usize;
-        }
-        Ok(())
-    }
-    
-    fn handles_hook(&self, hook: &PluginHook) -> bool {
-        matches!(hook, PluginHook::PreRequest)
-    }
-    
-    async fn handle_pre_request(
-        &self,
-        _request: &mut Request<BoxBody<Bytes, hyper::Error>>,
-        _context: &PluginContext,
-    ) -> Result<()> {
-        // Note: In a real implementation, you'd want thread-safe counters
-        // This is simplified for demonstration
-        if self.last_reset.elapsed().as_secs() >= 60 {
-            // Reset would happen here
-        }
+    #[tokio::test]
+    async fn test_plugin_registration() {
+        let mut manager = PluginManager::new();
+        let plugin = Arc::new(LoggingPlugin::new());
         
-        if self.request_count >= self.requests_per_minute {
-            return Err(ApiError::RateLimit);
-        }
+        assert!(manager.register_plugin(plugin).is_ok());
+        assert_eq!(manager.plugins.len(), 1);
+    }
+    
+    #[tokio::test]
+    async fn test_plugin_execution() {
+        let mut manager = PluginManager::new();
+        manager.register_plugin(Arc::new(LoggingPlugin::new())).unwrap();
         
-        Ok(())
+        // Test plugin execution doesn't panic
+        assert!(manager.execute_pre_request("https://test.com").await.is_ok());
+        assert!(manager.execute_post_request("https://test.com", 200).await.is_ok());
     }
 }

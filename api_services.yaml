@@ -1,0 +1,243 @@
+# API Services Collection for Kick Client Testing
+# A curated list of free, public APIs for testing HTTP clients
+
+# Core Test APIs - Basic functionality testing
+core_apis:
+  ip_address:
+    name: "IP Address API"
+    url: "https://api.ipify.org/?format=json"
+    method: GET
+    description: "Returns your public IP address"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "1000/day"
+    example_response: '{"ip": "192.168.1.1"}'
+    
+  dog_images:
+    name: "Dog CEO API"
+    url: "https://dog.ceo/api/breeds/image/random"
+    method: GET
+    description: "Random dog images"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"message": "https://images.dog.ceo/breeds/hound-english/n02089973_612.jpg", "status": "success"}'
+    
+  random_jokes:
+    name: "Official Joke API"
+    url: "https://official-joke-api.appspot.com/jokes/ten"
+    method: GET
+    description: "Collection of random jokes"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '[{"type": "general", "setup": "Why did the chicken cross the road?", "punchline": "To get to the other side!", "id": 1}]'
+
+  cat_facts:
+    name: "Cat Facts API"
+    url: "https://catfact.ninja/fact"
+    method: GET
+    description: "Random cat facts"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"fact": "Cats sleep 12-16 hours per day.", "length": 32}'
+
+# HTTP Testing Services - Headers, status codes, etc.
+http_testing:
+  httpbin_headers:
+    name: "HTTPBin Headers"
+    url: "https://httpbin.org/headers"
+    method: GET
+    description: "Returns request headers"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"headers": {"Host": "httpbin.org", "User-Agent": "kick/1.0"}}'
+    
+  httpbin_user_agent:
+    name: "HTTPBin User Agent"
+    url: "https://httpbin.org/user-agent"
+    method: GET
+    description: "Returns user agent string"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"user-agent": "kick/1.0"}'
+    
+  httpbin_uuid:
+    name: "HTTPBin UUID"
+    url: "https://httpbin.org/uuid"
+    method: GET
+    description: "Returns a UUID4"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"uuid": "f47ac10b-58cc-4372-a567-0e02b2c3d479"}'
+    
+  httpbin_delay:
+    name: "HTTPBin Delay"
+    url: "https://httpbin.org/delay/2"
+    method: GET
+    description: "Delays response by N seconds"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    timeout_test: true
+    example_response: '{"args": {}, "headers": {}, "origin": "1.2.3.4", "url": "https://httpbin.org/delay/2"}'
+
+  # Status code testing
+  httpbin_status_200:
+    name: "HTTPBin Status 200"
+    url: "https://httpbin.org/status/200"
+    method: GET
+    description: "Returns HTTP 200"
+    response_type: "text"
+    auth_required: false
+    rate_limit: "none"
+    status_test: 200
+    
+  httpbin_status_404:
+    name: "HTTPBin Status 404" 
+    url: "https://httpbin.org/status/404"
+    method: GET
+    description: "Returns HTTP 404"
+    response_type: "text"
+    auth_required: false
+    rate_limit: "none"
+    status_test: 404
+    expected_error: true
+
+# POST Testing Services
+post_testing:
+  httpbin_post:
+    name: "HTTPBin POST"
+    url: "https://httpbin.org/post"
+    method: POST
+    description: "POST data echo service"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_data: '{"key": "value", "test": true}'
+    example_response: '{"args": {}, "data": "{\\"key\\": \\"value\\", \\"test\\": true}", "json": {"key": "value", "test": true}}'
+
+# File/Download Testing
+download_testing:
+  small_json:
+    name: "Small JSON Download"
+    url: "https://api.ipify.org/?format=json"
+    method: GET
+    description: "Small JSON file for download testing"
+    response_type: "json"
+    file_size: "~25 bytes"
+    auth_required: false
+    
+  robots_txt:
+    name: "Robots.txt"
+    url: "https://httpbin.org/robots.txt"
+    method: GET
+    description: "Text file download"
+    response_type: "text"
+    file_size: "~200 bytes"
+    auth_required: false
+
+# Real-World APIs (require auth but good for examples)
+authenticated_examples:
+  github_api:
+    name: "GitHub API"
+    url: "https://api.github.com/user"
+    method: GET
+    description: "GitHub user info (requires auth)"
+    response_type: "json"
+    auth_required: true
+    auth_type: "Bearer token"
+    header_example: "Authorization: Bearer ghp_xxxxxxxxxxxxxxxxxxxx"
+    rate_limit: "5000/hour (authenticated)"
+    
+  jsonplaceholder:
+    name: "JSONPlaceholder"
+    url: "https://jsonplaceholder.typicode.com/posts"
+    method: GET
+    description: "Fake REST API for testing"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '[{"userId": 1, "id": 1, "title": "sunt aut facere", "body": "quia et suscipit..."}]'
+
+# Utility APIs
+utility_apis:
+  lorem_picsum:
+    name: "Lorem Picsum"
+    url: "https://picsum.photos/200/300"
+    method: GET
+    description: "Random images by size"
+    response_type: "image"
+    auth_required: false
+    rate_limit: "none"
+    file_size: "varies"
+    
+  advice_slip:
+    name: "Advice Slip"
+    url: "https://api.adviceslip.com/advice"
+    method: GET
+    description: "Random advice"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '{"slip": {"id": 117, "advice": "It is better to fail in originality, than to succeed in imitation."}}'
+
+# Regional/International APIs
+international_apis:
+  country_info:
+    name: "REST Countries"
+    url: "https://restcountries.com/v3.1/name/canada"
+    method: GET
+    description: "Country information"
+    response_type: "json"
+    auth_required: false
+    rate_limit: "none"
+    example_response: '[{"name": {"common": "Canada", "official": "Canada"}, "capital": ["Ottawa"]}]'
+
+# Testing Notes
+testing_guidelines:
+  - "Use core_apis for basic functionality testing"
+  - "Use http_testing for headers, status codes, and edge cases"  
+  - "Use post_testing for JSON POST request validation"
+  - "Use download_testing for file operation testing"
+  - "authenticated_examples show header usage patterns"
+  - "Always check rate_limit before automated testing"
+  - "APIs with expected_error: true should return HTTP error codes"
+  - "timeout_test APIs are good for testing timeout handling"
+
+# UAT Test Suites
+test_suites:
+  basic_functionality:
+    description: "Core GET/POST/Download operations"
+    apis:
+      - "ip_address"
+      - "dog_images" 
+      - "httpbin_post"
+      - "small_json"
+    
+  error_handling:
+    description: "HTTP error and edge case handling"
+    apis:
+      - "httpbin_status_404"
+      - "httpbin_delay"
+    
+  headers_and_auth:
+    description: "Custom headers and authentication"
+    apis:
+      - "httpbin_headers"
+      - "httpbin_user_agent"
+      - "github_api"
+      
+  comprehensive:
+    description: "Full feature validation"
+    apis:
+      - "ip_address"
+      - "dog_images"
+      - "random_jokes"
+      - "httpbin_headers"
+      - "httpbin_post"
+      - "httpbin_status_404"
