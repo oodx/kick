@@ -1,3 +1,1 @@
-
-
-A super-light weight 
+help me create a light weight API client using the rust hyper package, i want it to me modular so dont be shy to create multiple modules. it should enable a plugin pattern for extensibility. ill eventually wrap it with an agent system that starts to create a langchain like agentic pattern. it should be configurable and support xdg paths. download and save data to  a specified locationz  ah and it should support streams
