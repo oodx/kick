@@ -216,6 +216,115 @@ impl ApiClient {
             .map_err(|e| ApiError::other(format!("Invalid UTF-8: {}", e)))
     }
     
+    /// Send a PUT request with JSON data
+    pub async fn put_json(&self, url: &str, data: &serde_json::Value) -> Result<String> {
+        // Pre-request plugin hook
+        self.plugin_manager.execute_pre_request(url).await?;
+        
+        let json_body = serde_json::to_string(data)?;
+        let request = Request::builder()
+            .method(Method::PUT)
+            .uri(url)
+            .header("Content-Type", "application/json")
+            .body(Full::new(Bytes::from(json_body)).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
+            .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
+            
+        let response = timeout(self.timeout_duration, self.client.request(request))
+            .await
+            .map_err(|_| ApiError::Timeout)?
+            .map_err(|e| ApiError::other(format!("Client error: {}", e)))?;
+            
+        let status = response.status();
+        let status_code = status.as_u16();
+        
+        // Post-request plugin hook
+        self.plugin_manager.execute_post_request(url, status_code).await?;
+        
+        if !status.is_success() {
+            return Err(ApiError::HttpStatus { status });
+        }
+        
+        let body_bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .map_err(|e| ApiError::other(format!("Failed to read response body: {}", e)))?
+            .to_bytes();
+            
+        String::from_utf8(body_bytes.to_vec())
+            .map_err(|e| ApiError::other(format!("Invalid UTF-8: {}", e)))
+    }
+    
+    /// Send a DELETE request
+    pub async fn delete(&self, url: &str) -> Result<String> {
+        // Pre-request plugin hook
+        self.plugin_manager.execute_pre_request(url).await?;
+        
+        let request = Request::builder()
+            .method(Method::DELETE)
+            .uri(url)
+            .body(Empty::<Bytes>::new().map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
+            .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
+            
+        let response = timeout(self.timeout_duration, self.client.request(request))
+            .await
+            .map_err(|_| ApiError::Timeout)?
+            .map_err(|e| ApiError::other(format!("Client error: {}", e)))?;
+            
+        let status = response.status();
+        let status_code = status.as_u16();
+        
+        // Post-request plugin hook
+        self.plugin_manager.execute_post_request(url, status_code).await?;
+        
+        if !status.is_success() {
+            return Err(ApiError::HttpStatus { status });
+        }
+        
+        let body_bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .map_err(|e| ApiError::other(format!("Failed to read response body: {}", e)))?
+            .to_bytes();
+            
+        String::from_utf8(body_bytes.to_vec())
+            .map_err(|e| ApiError::other(format!("Invalid UTF-8: {}", e)))
+    }
+    
+    /// Send a PATCH request with JSON data
+    pub async fn patch_json(&self, url: &str, data: &serde_json::Value) -> Result<String> {
+        // Pre-request plugin hook
+        self.plugin_manager.execute_pre_request(url).await?;
+        
+        let json_body = serde_json::to_string(data)?;
+        let request = Request::builder()
+            .method(Method::PATCH)
+            .uri(url)
+            .header("Content-Type", "application/json")
+            .body(Full::new(Bytes::from(json_body)).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
+            .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
+            
+        let response = timeout(self.timeout_duration, self.client.request(request))
+            .await
+            .map_err(|_| ApiError::Timeout)?
+            .map_err(|e| ApiError::other(format!("Client error: {}", e)))?;
+            
+        let status = response.status();
+        let status_code = status.as_u16();
+        
+        // Post-request plugin hook
+        self.plugin_manager.execute_post_request(url, status_code).await?;
+        
+        if !status.is_success() {
+            return Err(ApiError::HttpStatus { status });
+        }
+        
+        let body_bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .map_err(|e| ApiError::other(format!("Failed to read response body: {}", e)))?
+            .to_bytes();
+            
+        String::from_utf8(body_bytes.to_vec())
+            .map_err(|e| ApiError::other(format!("Invalid UTF-8: {}", e)))
+    }
+    
     /// Execute HTTP request with retry logic and plugin support
     pub async fn execute_request_with_retry(&self, url: &str, method: Method, body: Option<&serde_json::Value>) -> Result<String> {
         let max_retries = self.config.client.max_retries;
@@ -253,13 +362,28 @@ impl ApiClient {
     
     /// Download a file from URL and save to local filesystem
     pub async fn download_file(&self, url: &str, filename: &str) -> Result<std::path::PathBuf> {
+        self.download_file_with_options(url, filename, false).await
+    }
+    
+    /// Download a file from URL with local/XDG location options
+    pub async fn download_file_with_options(&self, url: &str, filename: &str, use_local: bool) -> Result<std::path::PathBuf> {
+        // Sanitize filename to prevent path traversal attacks
+        let sanitized_filename = Self::sanitize_filename(filename)?;
+        
         // Get the response as bytes
         let response_text = self.get(url).await?;
         let response_bytes = response_text.into_bytes();
         
-        // Use ~/.local/data/kick/downloads as default download location  
-        let downloads_dir = self.config.storage.base_path.join("downloads");
-        let file_path = downloads_dir.join(filename);
+        // Choose download directory based on local flag
+        let downloads_dir = if use_local {
+            // Use ./.downloads/ directory for local downloads
+            std::path::PathBuf::from("./.downloads")
+        } else {
+            // Use ~/.local/data/kick/downloads as default download location  
+            self.config.storage.base_path.join("downloads")
+        };
+        
+        let file_path = downloads_dir.join(sanitized_filename);
         
         // Ensure downloads directory exists
         fs::create_dir_all(&downloads_dir).await
@@ -276,6 +400,28 @@ impl ApiClient {
             .map_err(|e| ApiError::other(format!("Failed to flush file: {}", e)))?;
         
         Ok(file_path)
+    }
+    
+    /// Sanitize filename to prevent path traversal attacks
+    fn sanitize_filename(filename: &str) -> Result<String> {
+        let path = std::path::Path::new(filename);
+        
+        // Reject absolute paths
+        if path.is_absolute() {
+            return Err(ApiError::other("Invalid filename: absolute paths not allowed"));
+        }
+        
+        // Reject paths containing parent directory references
+        if filename.contains("..") {
+            return Err(ApiError::other("Invalid filename: parent directory references not allowed"));
+        }
+        
+        // Reject empty filenames
+        if filename.trim().is_empty() {
+            return Err(ApiError::other("Invalid filename: empty filename not allowed"));
+        }
+        
+        Ok(filename.to_string())
     }
     
     /// Download JSON data and deserialize it

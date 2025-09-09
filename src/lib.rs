@@ -3,8 +3,9 @@ pub mod client;  // Phase 1: Re-enabling with driver HTTP patterns
 pub mod config;
 pub mod error;
 pub mod plugin;  // Phase 1: Re-enabled with driver patterns
-// pub mod storage;
-// pub mod streaming;
+pub mod sec;     // Security helpers and validators
+pub mod storage; // Phase 2: Re-enabling sophisticated storage features
+pub mod streaming; // Phase 2: Re-enabling streaming infrastructure
 pub mod driver;
 
 pub use client::{ApiClient, ApiClientBuilder};
