@@ -1,0 +1,45 @@
+[package]
+name = "kick"
+description = "The official implementation of REBEL philosophy of developer ergonomics and productivity focus, framework/library"
+license = "None (Private)"
+repository = "https://github.com/oodx/rsb-framework"
+version = "0.0.1"
+edition = "2021"
+
+[[bin]]
+name = "kick"
+path = "src/main.rs"
+
+[[bin]]
+name = "driver"
+path = "src/driver.rs"
+
+
+[dependencies]
+# RSB framework with re-exported dependencies
+rsb = { git = "https://github.com/oodx/rsb-framework", branch = "main" }
+xstream = { git = "https://github.com/oodx/xstream", branch = "main" }
+
+
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+hyper-tls = "0.6"
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9.5"
+dirs = "6.0"
+thiserror = "2.0.16"
+anyhow = "1.0"
+async-trait = "0.1"
+futures = "0.3"
+bytes = "1.0"
+mime = "0.3"
+url = "2.0"
+uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[dev-dependencies]
+tempfile = "3.0"
+tokio-test = "0.4"
