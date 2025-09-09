@@ -257,14 +257,13 @@ impl ApiClient {
         let response_text = self.get(url).await?;
         let response_bytes = response_text.into_bytes();
         
-        // Create the full path using the storage directory from config
-        let file_path = self.config.storage.base_path.join(filename);
+        // Use ~/.local/data/kick/downloads as default download location  
+        let downloads_dir = self.config.storage.base_path.join("downloads");
+        let file_path = downloads_dir.join(filename);
         
-        // Ensure parent directory exists
-        if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent).await
-                .map_err(|e| ApiError::other(format!("Failed to create directory: {}", e)))?;
-        }
+        // Ensure downloads directory exists
+        fs::create_dir_all(&downloads_dir).await
+            .map_err(|e| ApiError::other(format!("Failed to create downloads directory: {}", e)))?;
         
         // Write the file
         let mut file = fs::File::create(&file_path).await

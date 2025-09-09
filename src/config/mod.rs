@@ -47,17 +47,14 @@ pub struct StreamingConfig {
 
 impl Default for Config {
     fn default() -> Self {
-        let data_dir = dirs::data_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("modular-api-client");
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        let data_dir = home.join(".local").join("data").join("kick");
         
-        let cache_dir = dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("modular-api-client");
+        let cache_dir = home.join(".cache").join("kick");
 
         Self {
             client: ClientConfig {
-                user_agent: "ModularApiClient/0.1.0".to_string(),
+                user_agent: "KickClient/0.1.0".to_string(),
                 timeout: 30,
                 max_retries: 3,
                 retry_delay: 1000,
@@ -151,7 +148,7 @@ impl Config {
     pub fn config_path() -> PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("modular-api-client")
+            .join("kick")
             .join("config.toml")
     }
     
