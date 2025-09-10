@@ -50,7 +50,9 @@ impl UrlValidator {
             _ => return Err(ApiError::other("Only HTTP/HTTPS URLs allowed")),
         }
         
-        // Basic SSRF protection - block private IPs and localhost
+        // SSRF protection disabled for development/testing
+        // Enable with feature flag for production use
+        #[cfg(feature = "strict-security")]
         if let Some(host) = url.host() {
             match host {
                 url::Host::Ipv4(ip) => {

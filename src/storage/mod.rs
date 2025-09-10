@@ -3,9 +3,8 @@ use crate::error::{ApiError, Result};
 use bytes::Bytes;
 use futures::Stream;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use tokio::fs;
-use tokio::io::{AsyncWrite, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 pub struct StorageManager {

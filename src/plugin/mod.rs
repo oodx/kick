@@ -62,13 +62,13 @@ pub trait Plugin: Send + Sync {
     }
     
     /// Handle pre-request processing (simplified - no request mutation for now)
-    async fn handle_pre_request(&self, url: &str, _context: &PluginContext) -> Result<()> {
+    async fn handle_pre_request(&self, _url: &str, _context: &PluginContext) -> Result<()> {
         // Default implementation - plugins can override
         Ok(())
     }
     
     /// Handle post-request processing
-    async fn handle_post_request(&self, url: &str, status: u16, _context: &PluginContext) -> Result<()> {
+    async fn handle_post_request(&self, _url: &str, _status: u16, _context: &PluginContext) -> Result<()> {
         // Default implementation - plugins can override
         Ok(())
     }
@@ -80,6 +80,21 @@ pub trait Plugin: Send + Sync {
     
     /// Handle retry attempts
     async fn handle_retry(&self, _attempt: u32, _context: &PluginContext) -> Result<()> {
+        Ok(())
+    }
+    
+    /// Handle pre-response processing (before body is consumed)
+    async fn handle_pre_response(&self, _status: u16, _context: &PluginContext) -> Result<()> {
+        Ok(())
+    }
+    
+    /// Handle post-response processing (after body is consumed)
+    async fn handle_post_response(&self, _body: &str, _context: &PluginContext) -> Result<()> {
+        Ok(())
+    }
+    
+    /// Handle streaming data chunks
+    async fn handle_stream(&self, _chunk: &[u8], _context: &PluginContext) -> Result<()> {
         Ok(())
     }
 }
@@ -144,11 +159,117 @@ impl PluginManager {
         }
         Ok(())
     }
+    
+    /// Execute plugins for pre-response hook
+    pub async fn execute_pre_response(&self, status: u16) -> Result<()> {
+        let context = PluginContext::new(PluginHook::PreResponse);
+        
+        for plugin in &self.plugins {
+            if plugin.handles_hook(&PluginHook::PreResponse) {
+                plugin.handle_pre_response(status, &context).await?;
+            }
+        }
+        Ok(())
+    }
+    
+    /// Execute plugins for post-response hook
+    pub async fn execute_post_response(&self, body: &str) -> Result<()> {
+        let context = PluginContext::new(PluginHook::PostResponse);
+        
+        for plugin in &self.plugins {
+            if plugin.handles_hook(&PluginHook::PostResponse) {
+                plugin.handle_post_response(body, &context).await?;
+            }
+        }
+        Ok(())
+    }
+    
+    /// Execute plugins for stream hook
+    pub async fn execute_stream(&self, chunk: &[u8]) -> Result<()> {
+        let context = PluginContext::new(PluginHook::OnStream);
+        
+        for plugin in &self.plugins {
+            if plugin.handles_hook(&PluginHook::OnStream) {
+                plugin.handle_stream(chunk, &context).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for PluginManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Rate limiting plugin implementation
+pub struct RateLimitPlugin {
+    requests_per_second: u32,
+    last_request_time: std::sync::Mutex<Option<std::time::Instant>>,
+}
+
+impl RateLimitPlugin {
+    pub fn new(requests_per_second: u32) -> Self {
+        Self {
+            requests_per_second,
+            last_request_time: std::sync::Mutex::new(None),
+        }
+    }
+    
+    async fn enforce_rate_limit(&self) -> Result<()> {
+        let now = std::time::Instant::now();
+        let sleep_duration = {
+            let last_time = self.last_request_time.lock().unwrap();
+            
+            if let Some(last) = *last_time {
+                let min_interval = std::time::Duration::from_secs_f64(1.0 / self.requests_per_second as f64);
+                let elapsed = now.duration_since(last);
+                
+                if elapsed < min_interval {
+                    Some(min_interval - elapsed)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+        
+        if let Some(duration) = sleep_duration {
+            tokio::time::sleep(duration).await;
+        }
+        
+        // Update the last request time
+        {
+            let mut last_time = self.last_request_time.lock().unwrap();
+            *last_time = Some(std::time::Instant::now());
+        }
+        
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Plugin for RateLimitPlugin {
+    fn name(&self) -> &str {
+        "rate_limit"
+    }
+    
+    fn version(&self) -> &str {
+        "1.0.0"
+    }
+    
+    fn description(&self) -> &str {
+        "Rate limits API requests"
+    }
+    
+    fn handles_hook(&self, hook: &PluginHook) -> bool {
+        matches!(hook, PluginHook::PreRequest)
+    }
+    
+    async fn handle_pre_request(&self, _url: &str, _context: &PluginContext) -> Result<()> {
+        self.enforce_rate_limit().await
     }
 }
 

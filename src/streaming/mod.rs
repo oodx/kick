@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::error::{ApiError, Result};
 use bytes::Bytes;
-use futures::{Stream, StreamExt, TryStreamExt, FutureExt};
+use futures::{Stream, StreamExt};
 use pin_project::pin_project;
 use hyper::Response;
 use http_body_util::{combinators::BoxBody, BodyExt};
@@ -24,18 +24,23 @@ impl StreamHandler {
         response: Response<BoxBody<Bytes, hyper::Error>>,
     ) -> impl Stream<Item = Result<Bytes>> + '_ {
         let timeout_duration = self.config.stream_timeout();
-        let (parts, body) = response.into_parts();
+        let (_parts, body) = response.into_parts();
         
-        body.map_err(|e| ApiError::Http(e))
+        // Convert body to stream using BodyExt::into_data_stream
+        let stream = body.into_data_stream();
+        
+        // Map errors and apply timeout to each chunk
+        stream
             .map(move |result| {
-                timeout(timeout_duration, async move { result })
-                    .map(|timeout_result| {
-                        timeout_result
-                            .map_err(|_| ApiError::Timeout)
-                            .and_then(|r| r)
-                    })
+                let chunk_result = result.map_err(|e| ApiError::Http(e));
+                async move {
+                    timeout(timeout_duration, async move { chunk_result })
+                        .await
+                        .map_err(|_| ApiError::Timeout)
+                        .and_then(|r| r)
+                }
             })
-            .flatten()
+            .buffered(1)  // Process one future at a time
     }
     
     /// Create a buffered stream that collects chunks until buffer is full
