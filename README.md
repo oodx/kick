@@ -1,4 +1,4 @@
-# Modular API Client
+# Kick, the modular API client
 
 A lightweight, extensible HTTP client built with Rust and Hyper, designed for modularity and plugin-based extensibility. Perfect foundation for building agent systems and complex API integrations.
 

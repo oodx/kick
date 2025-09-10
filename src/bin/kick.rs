@@ -8,9 +8,22 @@ use clap::{Parser, Subcommand};
 #[command(about = "Kick API Client - A lightweight HTTP client with plugin support")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(long_about = None)]
+#[command(disable_version_flag = true)]
+#[command(help_template = r#"
+{before-help}{name} v{version}
+{about}
+
+{usage-heading} {usage}
+
+{all-args}{after-help}
+"#)]
 struct Cli {
+    /// Show version and license information
+    #[arg(short = 'V', long = "version", action = clap::ArgAction::SetTrue)]
+    version: bool,
+
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -146,6 +159,148 @@ enum Commands {
     },
 }
 
+/// Load ASCII logo from logo.txt file
+fn load_logo() -> String {
+    match std::fs::read_to_string("logo.txt") {
+        Ok(logo) => logo,
+        Err(_) => "KICK".to_string(), // Fallback if logo.txt not found
+    }
+}
+
+/// Show comprehensive help or help for specific command
+fn show_help(command: Option<String>) {
+    match command.as_deref() {
+        Some("get") => {
+            println!("KICK GET Command Help\n");
+            println!("Make a GET request to the specified URL\n");
+            println!("Usage: kick get [OPTIONS] <URL>\n");
+            println!("Arguments:");
+            println!("  <URL>  URL to request\n");
+            println!("Options:");
+            println!("  -H, --header <HEADER>     Custom headers (format: \"Key:Value\")");
+            println!("  -A, --user-agent <AGENT>  User agent string");
+            println!("  -s, --save <FILE>         Save response to file");
+            println!("  -p, --pretty              Pretty print JSON responses");
+            println!("  -v, --verbose             Verbose output with plugin logging\n");
+            println!("Examples:");
+            println!("  kick get https://api.example.com/users");
+            println!("  kick get -H \"Authorization: Bearer token\" https://api.example.com/protected");
+            println!("  kick get -p -s response.json https://api.example.com/data");
+        },
+        Some("post") => {
+            println!("KICK POST Command Help\n");
+            println!("Make a POST request with JSON data\n");
+            println!("Usage: kick post [OPTIONS] --data <DATA> <URL>\n");
+            println!("Arguments:");
+            println!("  <URL>  URL to request\n");
+            println!("Options:");
+            println!("  -d, --data <DATA>         JSON data to post");
+            println!("  -H, --header <HEADER>     Custom headers (format: \"Key:Value\")");
+            println!("  -A, --user-agent <AGENT>  User agent string");
+            println!("  -s, --save <FILE>         Save response to file");
+            println!("  -p, --pretty              Pretty print JSON responses");
+            println!("  -v, --verbose             Verbose output with plugin logging\n");
+            println!("Examples:");
+            println!("  kick post -d '{{\"name\": \"John\"}}' https://api.example.com/users");
+            println!("  kick post -H \"Content-Type: application/json\" -d '{{\"data\": \"value\"}}' https://api.example.com/create");
+        },
+        Some("put") => {
+            println!("KICK PUT Command Help\n");
+            println!("Make a PUT request with JSON data\n");
+            println!("Usage: kick put [OPTIONS] --data <DATA> <URL>\n");
+            println!("Similar to POST but uses PUT method for updates.");
+        },
+        Some("patch") => {
+            println!("KICK PATCH Command Help\n");
+            println!("Make a PATCH request with JSON data\n");
+            println!("Usage: kick patch [OPTIONS] --data <DATA> <URL>\n");
+            println!("Similar to POST but uses PATCH method for partial updates.");
+        },
+        Some("delete") => {
+            println!("KICK DELETE Command Help\n");
+            println!("Make a DELETE request\n");
+            println!("Usage: kick delete [OPTIONS] <URL>\n");
+            println!("Sends DELETE request to remove resources.");
+        },
+        Some("download") => {
+            println!("KICK DOWNLOAD Command Help\n");
+            println!("Download file from URL\n");
+            println!("Usage: kick download [OPTIONS] --output <FILE> <URL>\n");
+            println!("Arguments:");
+            println!("  <URL>  URL to download from\n");
+            println!("Options:");
+            println!("  -o, --output <FILE>       Output filename");
+            println!("  -l, --local               Download to ./.downloads/ directory");
+            println!("  -H, --header <HEADER>     Custom headers");
+            println!("  -A, --user-agent <AGENT>  User agent string");
+            println!("  -v, --verbose             Verbose output\n");
+            println!("Examples:");
+            println!("  kick download -o file.zip https://example.com/file.zip");
+            println!("  kick download -l -o local-file.txt https://example.com/data.txt");
+        },
+        Some("help") => {
+            println!("KICK HELP Command Help\n");
+            println!("Show help information for commands\n");
+            println!("Usage: kick help [COMMAND]\n");
+            println!("Show general help or help for specific command.");
+        },
+        Some("version") => {
+            println!("KICK VERSION Command Help\n");
+            println!("Show version and license information\n");
+            println!("Usage: kick version\n");
+            println!("Displays version, logo, and license details.");
+        },
+        _ => {
+            println!("{}", load_logo());
+            println!("KICK - Lightweight HTTP client with plugin support\n");
+            println!("Usage: kick [OPTIONS] <COMMAND>\n");
+            println!("Commands:");
+            println!("  get       Make a GET request");
+            println!("  post      Make a POST request with JSON data");
+            println!("  put       Make a PUT request with JSON data");
+            println!("  patch     Make a PATCH request with JSON data");
+            println!("  delete    Make a DELETE request");
+            println!("  download  Download file from URL");
+            println!("  help      Show help information [aliases: -h, --help]");
+            println!("  version   Show version and license information [aliases: -v, --version]\n");
+            println!("Options:");
+            println!("  -h, --help     Print help");
+            println!("  -V, --version  Print version\n");
+            println!("Use 'kick help <command>' for detailed help on specific commands.");
+            println!("\nExample:");
+            println!("  kick get https://httpbin.org/get");
+            println!("  kick help post");
+        }
+    }
+}
+
+/// Show version with logo and license information
+fn show_version() {
+    println!("{}", load_logo());
+    println!("KICK v{}", env!("CARGO_PKG_VERSION"));
+    println!("\nA lightweight HTTP client with plugin support");
+    println!("Built with the REBEL philosophy of developer ergonomics\n");
+    println!("LICENSE INFORMATION:");
+    println!("{}", "-".repeat(50));
+    match std::fs::read_to_string("LICENSE") {
+        Ok(license) => {
+            // Show first few lines of license
+            let lines: Vec<&str> = license.lines().take(10).collect();
+            for line in &lines {
+                println!("{}", line);
+            }
+            if license.lines().count() > 10 {
+                println!("\n... (see LICENSE file for complete terms)");
+            }
+        },
+        Err(_) => {
+            println!("Licensed under the Apache License, Version 2.0");
+            println!("See LICENSE file for complete terms");
+        }
+    }
+    println!("\nRepository: {}", env!("CARGO_PKG_REPOSITORY"));
+}
+
 /// Sanitize save filename to prevent path traversal attacks
 fn sanitize_save_filename(filename: &str) -> Result<std::path::PathBuf> {
     PathValidator::safe_current_dir_path(filename)
@@ -156,9 +311,24 @@ fn sanitize_save_filename(filename: &str) -> Result<std::path::PathBuf> {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     
+    // Handle version flag
+    if cli.version {
+        show_version();
+        return Ok(());
+    }
+    
+    // Handle case where no command is provided
+    let command = match cli.command {
+        Some(cmd) => cmd,
+        None => {
+            show_help(None);
+            return Ok(());
+        }
+    };
+    
     let config = Config::default();
     
-    match cli.command {
+    match command {
         Commands::Get { url, headers, user_agent, save, pretty, verbose } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)

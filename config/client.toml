@@ -1,0 +1,29 @@
+[client]
+user_agent = "KICK-UAT-Client/1.0.0"
+timeout = 30
+max_retries = 3
+retry_delay = 500
+
+[client.default_headers]
+"Authorization" = "Bearer executive-test-token"
+"X-Corporate-ID" = "HORUS-UAT-001"
+"X-Test-Suite" = "Executive-Validation"
+
+[storage]
+base_path = "/tmp/kick-uat"
+temp_path = "/tmp/kick-uat/temp"
+max_file_size = 104857600
+cleanup_on_exit = true
+
+[plugins]
+enabled_plugins = ["logging", "rate_limiter"]
+plugin_paths = []
+
+[plugins.plugin_settings.rate_limiter]
+requests_per_minute = 60
+
+[streaming]
+buffer_size = 8192
+chunk_size = 4096
+max_concurrent_streams = 10
+stream_timeout = 300
