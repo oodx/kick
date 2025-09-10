@@ -73,7 +73,18 @@ impl ApiClientBuilder {
     /// Build the ApiClient
     pub async fn build(self) -> Result<ApiClient> {
         let config = self.config.unwrap_or_default();
-        let plugin_manager = Arc::new(self.plugin_manager.unwrap_or_else(PluginManager::new));
+        
+        // Use config-based plugin loading if no explicit plugin manager provided
+        let plugin_manager = if let Some(manager) = self.plugin_manager {
+            Arc::new(manager)
+        } else {
+            // Try to load plugins from config, fall back to empty manager
+            match PluginManager::from_config(&config.plugins).await {
+                Ok(manager) => Arc::new(manager),
+                Err(_) => Arc::new(PluginManager::new()), // Fail gracefully for MVP
+            }
+        };
+        
         let connector = HttpsConnector::new();
         let client = Client::builder(TokioExecutor::new()).build(connector);
         let timeout_duration = Duration::from_secs(config.client.timeout as u64);
@@ -133,8 +144,12 @@ impl ApiClient {
             .uri(url)
             .header("user-agent", &self.user_agent);
             
-        // Add custom headers
-        for (key, value) in &self.custom_headers {
+        // Merge headers with custom overriding defaults
+        let mut final_headers = self.config.client.default_headers.clone();
+        final_headers.extend(self.custom_headers.iter().map(|(k,v)| (k.clone(), v.clone())));
+            
+        // Apply merged headers to request
+        for (key, value) in &final_headers {
             request_builder = request_builder.header(key, value);
         }
             
@@ -181,8 +196,12 @@ impl ApiClient {
             .header("content-type", "application/json")
             .header("user-agent", &self.user_agent);
             
-        // Add custom headers
-        for (key, value) in &self.custom_headers {
+        // Merge headers with custom overriding defaults
+        let mut final_headers = self.config.client.default_headers.clone();
+        final_headers.extend(self.custom_headers.iter().map(|(k,v)| (k.clone(), v.clone())));
+            
+        // Apply merged headers to request
+        for (key, value) in &final_headers {
             request_builder = request_builder.header(key, value);
         }
             
@@ -222,10 +241,23 @@ impl ApiClient {
         self.plugin_manager.execute_pre_request(url).await?;
         
         let json_body = serde_json::to_string(data)?;
-        let request = Request::builder()
+        
+        let mut request_builder = Request::builder()
             .method(Method::PUT)
             .uri(url)
-            .header("Content-Type", "application/json")
+            .header("content-type", "application/json")
+            .header("user-agent", &self.user_agent);
+            
+        // Merge headers with custom overriding defaults
+        let mut final_headers = self.config.client.default_headers.clone();
+        final_headers.extend(self.custom_headers.iter().map(|(k,v)| (k.clone(), v.clone())));
+            
+        // Apply merged headers to request
+        for (key, value) in &final_headers {
+            request_builder = request_builder.header(key, value);
+        }
+        
+        let request = request_builder
             .body(Full::new(Bytes::from(json_body)).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
             .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
             
@@ -258,9 +290,21 @@ impl ApiClient {
         // Pre-request plugin hook
         self.plugin_manager.execute_pre_request(url).await?;
         
-        let request = Request::builder()
+        let mut request_builder = Request::builder()
             .method(Method::DELETE)
             .uri(url)
+            .header("user-agent", &self.user_agent);
+            
+        // Merge headers with custom overriding defaults
+        let mut final_headers = self.config.client.default_headers.clone();
+        final_headers.extend(self.custom_headers.iter().map(|(k,v)| (k.clone(), v.clone())));
+            
+        // Apply merged headers to request
+        for (key, value) in &final_headers {
+            request_builder = request_builder.header(key, value);
+        }
+        
+        let request = request_builder
             .body(Empty::<Bytes>::new().map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
             .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
             
@@ -294,10 +338,23 @@ impl ApiClient {
         self.plugin_manager.execute_pre_request(url).await?;
         
         let json_body = serde_json::to_string(data)?;
-        let request = Request::builder()
+        
+        let mut request_builder = Request::builder()
             .method(Method::PATCH)
             .uri(url)
-            .header("Content-Type", "application/json")
+            .header("content-type", "application/json")
+            .header("user-agent", &self.user_agent);
+            
+        // Merge headers with custom overriding defaults
+        let mut final_headers = self.config.client.default_headers.clone();
+        final_headers.extend(self.custom_headers.iter().map(|(k,v)| (k.clone(), v.clone())));
+            
+        // Apply merged headers to request
+        for (key, value) in &final_headers {
+            request_builder = request_builder.header(key, value);
+        }
+        
+        let request = request_builder
             .body(Full::new(Bytes::from(json_body)).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
             .map_err(|e| ApiError::other(format!("Failed to build request: {}", e)))?;
             

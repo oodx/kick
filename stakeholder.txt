@@ -1,0 +1,27 @@
+# Stakeholder Requirements
+
+> polish and cleanup for beta usage.
+
+- kick must support all help and version invocations
+  - help --help -h
+  - version --version -v
+
+- kick needs an ascii art branding logo
+  - local tool `toilet` using the "future" text
+  - can be pipes into a "logo.txt" file and used 
+    with the `version` command
+  - `logo()` function should be callable
+
+- help command does not show all commands and flags
+- help command should use  `sucommand help` pattern to layer complex
+  help views
+
+- version command must show LICENSE
+- LICENSE must be Apache 2, not MIT
+
+
+- all out-of-date or consumed status documents must be archived or removed.
+
+- all project analysis files `.egss\` `.uat\` `.\session` must be fully processed for tasks or insights and either archived or discarded
+
+- when all the tasks in this file are completed, this file must be deleted.

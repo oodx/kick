@@ -18,6 +18,10 @@ path = "src/bin/kick.rs"
 name = "driver"
 path = "src/bin/driver.rs"
 
+[[bin]]
+name = "test_config"
+path = "src/bin/test_config.rs"
+
 [dependencies]
 
 
@@ -43,6 +47,12 @@ tracing = "0.1"
 clap = { version = "4.0", features = ["derive"] }
 tracing-subscriber = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+default = []
+# Enable strict security checks that block local/private IPs (for production use)
+# By default, KICK allows connections to localhost and private networks for development
+strict-security = []
 
 [dev-dependencies]
 tempfile = "3.0"

@@ -307,6 +307,37 @@ max_concurrent_streams = 10
 stream_timeout = 300
 ```
 
+## Security Architecture
+
+KICK follows a **flexible-by-default** security model designed for development productivity and operational safety:
+
+### Current Security Model
+- **Input Validation**: Header and path sanitization to prevent injection attacks
+- **Safe File Operations**: XDG compliance with path traversal protection  
+- **Flexible Networking**: Supports localhost, private networks, and public APIs
+- **TLS Support**: HTTPS connections with proper certificate validation
+
+### Security Features
+- **Header Validation**: Prevents CRLF injection and malformed headers
+- **Path Sanitization**: Blocks directory traversal attempts in file operations
+- **Safe Downloads**: Automatic filename sanitization and secure storage
+- **Error Context**: Security-conscious error messages that don't leak sensitive information
+
+### Development-Friendly Approach
+KICK intentionally allows connections to:
+- `localhost` and `127.0.0.1` for local development
+- Private IP ranges (`192.168.x.x`, `10.x.x.x`) for internal APIs
+- Local domains (`.local`) for testing environments
+
+This design prioritizes developer productivity while maintaining essential security boundaries.
+
+### Security Roadmap
+Future versions will include:
+- Optional SSRF protection for production environments
+- Enhanced certificate validation controls
+- Request/response content filtering
+- Advanced rate limiting and abuse prevention
+
 ## License
 
 MIT License - see LICENSE file for details.

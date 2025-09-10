@@ -111,6 +111,49 @@ impl PluginManager {
         }
     }
     
+    /// Create PluginManager from configuration
+    pub async fn from_config(plugin_config: &crate::config::PluginConfig) -> Result<Self> {
+        let mut manager = Self::new();
+        
+        for plugin_name in &plugin_config.enabled_plugins {
+            let plugin_settings = plugin_config.plugin_settings
+                .get(plugin_name)
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            
+            // Create built-in plugins based on name
+            let plugin: Arc<dyn Plugin> = match plugin_name.as_str() {
+                "logging" => {
+                    let mut logging_plugin = LoggingPlugin::new();
+                    if let Err(e) = logging_plugin.initialize(&plugin_settings).await {
+                        return Err(ApiError::other(format!("Failed to initialize logging plugin: {}", e)));
+                    }
+                    Arc::new(logging_plugin)
+                },
+                "rate_limiter" => {
+                    // Extract requests_per_minute from settings
+                    let requests_per_minute = plugin_settings
+                        .get("requests_per_minute")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(60) as u32;
+                        
+                    let mut rate_limit_plugin = RateLimitPlugin::new(requests_per_minute);
+                    if let Err(e) = rate_limit_plugin.initialize(&plugin_settings).await {
+                        return Err(ApiError::other(format!("Failed to initialize rate_limiter plugin: {}", e)));
+                    }
+                    Arc::new(rate_limit_plugin)
+                },
+                unknown => {
+                    return Err(ApiError::other(format!("Unknown plugin: {}", unknown)));
+                }
+            };
+            
+            manager.register_plugin(plugin)?;
+        }
+        
+        Ok(manager)
+    }
+    
     pub fn register_plugin(&mut self, plugin: Arc<dyn Plugin>) -> Result<()> {
         self.plugins.push(plugin);
         Ok(())

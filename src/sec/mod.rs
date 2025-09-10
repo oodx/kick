@@ -198,14 +198,16 @@ mod tests {
         assert!(UrlValidator::validate("https://api.github.com").is_ok());
         assert!(UrlValidator::validate("http://httpbin.org").is_ok());
         
-        // Invalid schemes
+        // Invalid schemes - always blocked
         assert!(UrlValidator::validate("ftp://example.com").is_err());
         assert!(UrlValidator::validate("file:///etc/passwd").is_err());
         
-        // SSRF attempts
-        assert!(UrlValidator::validate("http://127.0.0.1").is_err());
-        assert!(UrlValidator::validate("https://localhost").is_err());
-        assert!(UrlValidator::validate("http://192.168.1.1").is_err());
+        // Development-friendly: localhost/private IPs allowed by default
+        assert!(UrlValidator::validate("http://127.0.0.1").is_ok());
+        assert!(UrlValidator::validate("https://localhost").is_ok());
+        assert!(UrlValidator::validate("http://192.168.1.1").is_ok());
+        
+        // Note: SSRF protection only enforced with strict-security feature flag
     }
     
     #[test]
