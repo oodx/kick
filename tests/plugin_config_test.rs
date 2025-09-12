@@ -1,5 +1,4 @@
 use kick::prelude::*;
-use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_plugin_loading_from_config() {

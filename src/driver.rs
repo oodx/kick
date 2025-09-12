@@ -269,7 +269,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_driver_creation() {
-        let client = DriverClient::new();
+        let _client = DriverClient::new();
         // Just verify we can create without panicking
         assert!(true);
     }
