@@ -3,16 +3,16 @@ use std::sync::Arc;
 
 #[tokio::test]
 async fn test_driver_client_creation() {
-    let client = DriverClient::new();
+    let _client = DriverClient::new();
     // Verify we can create without panicking
     assert!(true);
 }
 
 #[tokio::test]
 async fn test_driver_plugin_system() {
-    let client = DriverApiClient::new()
+    let _client = DriverApiClient::new()
         .with_plugin(Arc::new(LoggingPlugin));
-    
+
     // Verify we can create client with plugins without panicking
     assert!(true);
 }

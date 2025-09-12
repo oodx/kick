@@ -1,7 +1,7 @@
-use kick::prelude::*;
-use kick::sec::{HeaderValidator, UrlValidator, PathValidator};
-use std::sync::Arc;
 use clap::{Parser, Subcommand};
+use kick::prelude::*;
+use kick::sec::{HeaderValidator, PathValidator, UrlValidator};
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(name = "kick")]
@@ -184,9 +184,11 @@ fn show_help(command: Option<String>) {
             println!("  -v, --verbose             Verbose output with plugin logging\n");
             println!("Examples:");
             println!("  kick get https://api.example.com/users");
-            println!("  kick get -H \"Authorization: Bearer token\" https://api.example.com/protected");
+            println!(
+                "  kick get -H \"Authorization: Bearer token\" https://api.example.com/protected"
+            );
             println!("  kick get -p -s response.json https://api.example.com/data");
-        },
+        }
         Some("post") => {
             println!("KICK POST Command Help\n");
             println!("Make a POST request with JSON data\n");
@@ -203,25 +205,25 @@ fn show_help(command: Option<String>) {
             println!("Examples:");
             println!("  kick post -d '{{\"name\": \"John\"}}' https://api.example.com/users");
             println!("  kick post -H \"Content-Type: application/json\" -d '{{\"data\": \"value\"}}' https://api.example.com/create");
-        },
+        }
         Some("put") => {
             println!("KICK PUT Command Help\n");
             println!("Make a PUT request with JSON data\n");
             println!("Usage: kick put [OPTIONS] --data <DATA> <URL>\n");
             println!("Similar to POST but uses PUT method for updates.");
-        },
+        }
         Some("patch") => {
             println!("KICK PATCH Command Help\n");
             println!("Make a PATCH request with JSON data\n");
             println!("Usage: kick patch [OPTIONS] --data <DATA> <URL>\n");
             println!("Similar to POST but uses PATCH method for partial updates.");
-        },
+        }
         Some("delete") => {
             println!("KICK DELETE Command Help\n");
             println!("Make a DELETE request\n");
             println!("Usage: kick delete [OPTIONS] <URL>\n");
             println!("Sends DELETE request to remove resources.");
-        },
+        }
         Some("download") => {
             println!("KICK DOWNLOAD Command Help\n");
             println!("Download file from URL\n");
@@ -237,19 +239,19 @@ fn show_help(command: Option<String>) {
             println!("Examples:");
             println!("  kick download -o file.zip https://example.com/file.zip");
             println!("  kick download -l -o local-file.txt https://example.com/data.txt");
-        },
+        }
         Some("help") => {
             println!("KICK HELP Command Help\n");
             println!("Show help information for commands\n");
             println!("Usage: kick help [COMMAND]\n");
             println!("Show general help or help for specific command.");
-        },
+        }
         Some("version") => {
             println!("KICK VERSION Command Help\n");
             println!("Show version and license information\n");
             println!("Usage: kick version\n");
             println!("Displays version, logo, and license details.");
-        },
+        }
         _ => {
             println!("{}", load_logo());
             println!("KICK - Lightweight HTTP client with plugin support\n");
@@ -292,7 +294,7 @@ fn show_version() {
             if license.lines().count() > 10 {
                 println!("\n... (see LICENSE file for complete terms)");
             }
-        },
+        }
         Err(_) => {
             println!("Licensed under the Apache License, Version 2.0");
             println!("See LICENSE file for complete terms");
@@ -310,13 +312,13 @@ fn sanitize_save_filename(filename: &str) -> Result<std::path::PathBuf> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     // Handle version flag
     if cli.version {
         show_version();
         return Ok(());
     }
-    
+
     // Handle case where no command is provided
     let command = match cli.command {
         Some(cmd) => cmd,
@@ -325,29 +327,36 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
-    
+
     let config = Config::default();
-    
+
     match command {
-        Commands::Get { url, headers, user_agent, save, pretty, verbose } => {
+        Commands::Get {
+            url,
+            headers,
+            user_agent,
+            save,
+            pretty,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("🌐 GET {}", url);
-            
+
             match client.get(&url).await {
                 Ok(response) => {
                     println!("✅ Success ({} chars)", response.len());
-                    
+
                     let output = if pretty {
                         format_json(&response).unwrap_or(response)
                     } else {
                         response
                     };
-                    
+
                     if let Some(filename) = save {
                         let safe_filename = sanitize_save_filename(&filename)?;
                         std::fs::write(&safe_filename, &output)?;
@@ -362,29 +371,37 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        
-        Commands::Post { url, data, headers, user_agent, save, pretty, verbose } => {
+
+        Commands::Post {
+            url,
+            data,
+            headers,
+            user_agent,
+            save,
+            pretty,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("📤 POST {}", url);
-            
+
             let json_data: serde_json::Value = serde_json::from_str(&data)
                 .map_err(|e| ApiError::other(format!("Invalid JSON data: {}", e)))?;
-            
+
             match client.post_json(&url, &json_data).await {
                 Ok(response) => {
                     println!("✅ Success ({} chars)", response.len());
-                    
+
                     let output = if pretty {
                         format_json(&response).unwrap_or(response)
                     } else {
                         response
                     };
-                    
+
                     if let Some(filename) = save {
                         let safe_filename = sanitize_save_filename(&filename)?;
                         std::fs::write(&safe_filename, &output)?;
@@ -399,17 +416,27 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        
-        Commands::Download { url, output, local, headers, user_agent, verbose } => {
+
+        Commands::Download {
+            url,
+            output,
+            local,
+            headers,
+            user_agent,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("📥 Downloading {}", url);
-            
-            match client.download_file_with_options(&url, &output, local).await {
+
+            match client
+                .download_file_with_options(&url, &output, local)
+                .await
+            {
                 Ok(path) => {
                     println!("✅ Downloaded to: {:?}", path);
                 }
@@ -419,32 +446,40 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        
-        Commands::Put { url, data, headers, user_agent, save, pretty, verbose } => {
+
+        Commands::Put {
+            url,
+            data,
+            headers,
+            user_agent,
+            save,
+            pretty,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("🔄 PUT {}", url);
-            
+
             let json_data: serde_json::Value = serde_json::from_str(&data)
                 .map_err(|e| ApiError::other(format!("Invalid JSON: {}", e)))?;
-                
+
             match client.put_json(&url, &json_data).await {
                 Ok(response) => {
                     println!("✅ Success ({} chars)", response.len());
-                    
+
                     let output = if pretty {
                         match serde_json::from_str::<serde_json::Value>(&response) {
                             Ok(parsed) => serde_json::to_string_pretty(&parsed).unwrap_or(response),
-                            Err(_) => response
+                            Err(_) => response,
                         }
                     } else {
                         response
                     };
-                    
+
                     if let Some(filename) = save {
                         let safe_filename = sanitize_save_filename(&filename)?;
                         std::fs::write(&safe_filename, &output)?;
@@ -459,29 +494,36 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        
-        Commands::Delete { url, headers, user_agent, save, pretty, verbose } => {
+
+        Commands::Delete {
+            url,
+            headers,
+            user_agent,
+            save,
+            pretty,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("🗑️ DELETE {}", url);
-            
+
             match client.delete(&url).await {
                 Ok(response) => {
                     println!("✅ Success ({} chars)", response.len());
-                    
+
                     let output = if pretty {
                         match serde_json::from_str::<serde_json::Value>(&response) {
                             Ok(parsed) => serde_json::to_string_pretty(&parsed).unwrap_or(response),
-                            Err(_) => response
+                            Err(_) => response,
                         }
                     } else {
                         response
                     };
-                    
+
                     if let Some(filename) = save {
                         let safe_filename = sanitize_save_filename(&filename)?;
                         std::fs::write(&safe_filename, &output)?;
@@ -496,32 +538,40 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        
-        Commands::Patch { url, data, headers, user_agent, save, pretty, verbose } => {
+
+        Commands::Patch {
+            url,
+            data,
+            headers,
+            user_agent,
+            save,
+            pretty,
+            verbose,
+        } => {
             // Validate URL for SSRF protection
             let _validated_url = UrlValidator::validate(&url)
                 .map_err(|e| ApiError::other(format!("URL validation failed: {}", e)))?;
-            
+
             let client = build_client(config, headers, user_agent, verbose).await?;
-            
+
             println!("🔧 PATCH {}", url);
-            
+
             let json_data: serde_json::Value = serde_json::from_str(&data)
                 .map_err(|e| ApiError::other(format!("Invalid JSON: {}", e)))?;
-                
+
             match client.patch_json(&url, &json_data).await {
                 Ok(response) => {
                     println!("✅ Success ({} chars)", response.len());
-                    
+
                     let output = if pretty {
                         match serde_json::from_str::<serde_json::Value>(&response) {
                             Ok(parsed) => serde_json::to_string_pretty(&parsed).unwrap_or(response),
-                            Err(_) => response
+                            Err(_) => response,
                         }
                     } else {
                         response
                     };
-                    
+
                     if let Some(filename) = save {
                         let safe_filename = sanitize_save_filename(&filename)?;
                         std::fs::write(&safe_filename, &output)?;
@@ -537,7 +587,7 @@ async fn main() -> Result<()> {
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -548,28 +598,28 @@ async fn build_client(
     verbose: bool,
 ) -> Result<ApiClient> {
     let mut plugin_manager = PluginManager::new();
-    
+
     if verbose {
         plugin_manager.register_plugin(Arc::new(LoggingPlugin::new()))?;
     }
-    
+
     let mut builder = ApiClientBuilder::new().with_config(config);
-    
+
     if let Some(ua) = user_agent {
         builder = builder.with_user_agent(ua);
     }
-    
+
     // Parse and validate headers
     for header in headers {
         let (key, value) = HeaderValidator::parse_and_validate(&header)
             .map_err(|e| ApiError::other(format!("Header validation failed: {}", e)))?;
-        builder = builder.with_header(key, value);
+        builder = builder.with_header(key, value)?;
     }
-    
+
     if !plugin_manager.plugins.is_empty() {
         builder = builder.with_plugin_manager(plugin_manager);
     }
-    
+
     builder.build().await
 }
 
